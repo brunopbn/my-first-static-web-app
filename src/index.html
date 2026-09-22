@@ -1,17 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="styles.css">
-  <title>Vanilla JavaScript App</title>
+  <title>Painel de Cotações</title>
 </head>
 
-<body>
-  <main>
-    <h1>Vanilla JavaScript App</h1>
+<body class="dashboard-body">
+  <header class="dashboard-header">
+    <div class="dashboard-header-left">
+      <h1>Painel de Cotações</h1>
+      <span id="connection-status" class="status-badge status-connecting">conectando...</span>
+    </div>
+    <div class="dashboard-header-right">
+      <span id="clock" class="clock"></span>
+      <span id="user-name" class="user-name"></span>
+      <button id="logout-btn" class="logout-btn">Sair</button>
+    </div>
+  </header>
+
+  <main class="dashboard-main">
+    <section id="dolar-section" class="dolar-section" hidden>
+      <h2>Dólar</h2>
+      <div id="dolar-cards" class="dolar-cards"></div>
+    </section>
+
+    <section id="cafe-section">
+      <h2>Café</h2>
+      <div id="pracas-container" class="pracas-container"></div>
+    </section>
   </main>
+
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
 </body>
 
 </html>

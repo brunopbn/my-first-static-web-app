@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
+  <title>Painel de Cotações · Login</title>
+</head>
+
+<body class="login-body">
+  <main class="login-card">
+    <h1 class="login-title">Painel de Cotações</h1>
+    <p class="login-subtitle">Café &amp; Dólar em tempo real</p>
+
+    <form id="login-form" class="login-form" autocomplete="on">
+      <label for="email">E-mail</label>
+      <input type="email" id="email" name="email" required autocomplete="username" />
+
+      <label for="password">Senha</label>
+      <input type="password" id="password" name="password" required autocomplete="current-password" />
+
+      <button type="submit" id="login-submit">Entrar</button>
+
+      <p id="login-error" class="login-error" hidden></p>
+    </form>
+  </main>
+
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      const form = document.getElementById('login-form');
+      const errorEl = document.getElementById('login-error');
+      const submitBtn = document.getElementById('login-submit');
+
+      if (AuthClient.getToken()) {
+        window.location.replace('index.html');
+        return;
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        errorEl.hidden = true;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Entrando...';
+
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        try {
+          await AuthClient.login(email, password);
+          window.location.replace('index.html');
+        } catch (err) {
+          errorEl.textContent = err.message || 'Não foi possível entrar.';
+          errorEl.hidden = false;
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Entrar';
+        }
+      });
+    })();
+  </script>
+</body>
+
+</html>
