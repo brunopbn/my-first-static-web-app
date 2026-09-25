@@ -63,6 +63,37 @@ async def _get_or_create_instrumento(db: AsyncSession, update: QuoteUpdate, prac
     return instrumento
 
 
+def _f(value) -> float | None:
+    return float(value) if value is not None else None
+
+
+def _cotacao_payload(*, inst_id: int, praca_nome: str, praca_codigo: str, ativo_nome: str, ticker: str,
+                      vencimento_label: str, cot: CotacaoAtual) -> dict:
+    return {
+        "instrumento_id": inst_id,
+        "praca": praca_nome,
+        "praca_codigo": praca_codigo,
+        "ativo": ativo_nome,
+        "ticker": ticker,
+        "vencimento_label": vencimento_label,
+        "preco_abertura": _f(cot.preco_abertura),
+        "preco_maximo": _f(cot.preco_maximo),
+        "preco_minimo": _f(cot.preco_minimo),
+        "preco_fechamento": _f(cot.preco_fechamento),
+        "preco_ajuste_anterior": _f(cot.preco_ajuste_anterior),
+        "preco_ajuste": _f(cot.preco_ajuste),
+        "preco_compra": _f(cot.preco_compra),
+        "preco_venda": _f(cot.preco_venda),
+        "preco_ultimo": _f(cot.preco_ultimo),
+        "variacao": _f(cot.variacao),
+        "variacao_pct": _f(cot.variacao_pct),
+        "contratos_negociados": _f(cot.contratos_negociados),
+        "contratos_abertos": _f(cot.contratos_abertos),
+        "fonte": cot.fonte,
+        "atualizado_em": cot.atualizado_em.isoformat() if cot.atualizado_em else None,
+    }
+
+
 async def _apply_update(db: AsyncSession, update: QuoteUpdate) -> dict:
     praca = await _get_or_create_praca(db, update.praca_codigo, update.praca_nome, ordem=0)
     ativo = await _get_or_create_ativo(db, update.ativo_codigo, update.ativo_nome)
@@ -76,11 +107,15 @@ async def _apply_update(db: AsyncSession, update: QuoteUpdate) -> dict:
     cotacao.preco_abertura = update.preco_abertura
     cotacao.preco_maximo = update.preco_maximo
     cotacao.preco_minimo = update.preco_minimo
+    cotacao.preco_fechamento = update.preco_fechamento
     cotacao.preco_ajuste_anterior = update.preco_ajuste_anterior
+    cotacao.preco_ajuste = update.preco_ajuste
+    cotacao.preco_compra = update.preco_compra
+    cotacao.preco_venda = update.preco_venda
     cotacao.preco_ultimo = update.preco_ultimo
     cotacao.variacao = update.variacao
     cotacao.variacao_pct = update.variacao_pct
-    cotacao.volume = update.volume
+    cotacao.contratos_negociados = update.contratos_negociados
     cotacao.contratos_abertos = update.contratos_abertos
     cotacao.fonte = update.fonte
     cotacao.atualizado_em = datetime.now(timezone.utc)
@@ -93,22 +128,15 @@ async def _apply_update(db: AsyncSession, update: QuoteUpdate) -> dict:
         )
     )
 
-    return {
-        "instrumento_id": instrumento.id,
-        "praca": praca.nome,
-        "praca_codigo": praca.codigo,
-        "ativo": ativo.nome,
-        "ticker": instrumento.ticker,
-        "vencimento_label": instrumento.vencimento_label,
-        "preco_ultimo": float(update.preco_ultimo) if update.preco_ultimo is not None else None,
-        "preco_maximo": float(update.preco_maximo) if update.preco_maximo is not None else None,
-        "preco_minimo": float(update.preco_minimo) if update.preco_minimo is not None else None,
-        "preco_ajuste_anterior": float(update.preco_ajuste_anterior) if update.preco_ajuste_anterior is not None else None,
-        "variacao": float(update.variacao) if update.variacao is not None else None,
-        "variacao_pct": float(update.variacao_pct) if update.variacao_pct is not None else None,
-        "fonte": update.fonte,
-        "atualizado_em": cotacao.atualizado_em.isoformat(),
-    }
+    return _cotacao_payload(
+        inst_id=instrumento.id,
+        praca_nome=praca.nome,
+        praca_codigo=praca.codigo,
+        ativo_nome=ativo.nome,
+        ticker=instrumento.ticker,
+        vencimento_label=instrumento.vencimento_label,
+        cot=cotacao,
+    )
 
 
 async def build_snapshot() -> list[dict]:
@@ -123,27 +151,18 @@ async def build_snapshot() -> list[dict]:
         )
         rows = result.all()
 
-    snapshot = []
-    for cot, inst, praca, ativo in rows:
-        snapshot.append(
-            {
-                "instrumento_id": inst.id,
-                "praca": praca.nome,
-                "praca_codigo": praca.codigo,
-                "ativo": ativo.nome,
-                "ticker": inst.ticker,
-                "vencimento_label": inst.vencimento_label,
-                "preco_ultimo": float(cot.preco_ultimo) if cot.preco_ultimo is not None else None,
-                "preco_maximo": float(cot.preco_maximo) if cot.preco_maximo is not None else None,
-                "preco_minimo": float(cot.preco_minimo) if cot.preco_minimo is not None else None,
-                "preco_ajuste_anterior": float(cot.preco_ajuste_anterior) if cot.preco_ajuste_anterior is not None else None,
-                "variacao": float(cot.variacao) if cot.variacao is not None else None,
-                "variacao_pct": float(cot.variacao_pct) if cot.variacao_pct is not None else None,
-                "fonte": cot.fonte,
-                "atualizado_em": cot.atualizado_em.isoformat() if cot.atualizado_em else None,
-            }
+    return [
+        _cotacao_payload(
+            inst_id=inst.id,
+            praca_nome=praca.nome,
+            praca_codigo=praca.codigo,
+            ativo_nome=ativo.nome,
+            ticker=inst.ticker,
+            vencimento_label=inst.vencimento_label,
+            cot=cot,
         )
-    return snapshot
+        for cot, inst, praca, ativo in rows
+    ]
 
 
 async def run_poll_cycle() -> list[dict]:

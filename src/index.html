@@ -11,26 +11,43 @@
 <body class="dashboard-body">
   <header class="dashboard-header">
     <div class="dashboard-header-left">
-      <h1>Painel de Cotações</h1>
-      <span id="connection-status" class="status-badge status-connecting">conectando...</span>
+      <span id="live-dot" class="live-dot" title="Conectado ao servidor"></span>
+      <h1>Café Arábica</h1>
     </div>
     <div class="dashboard-header-right">
-      <span id="clock" class="clock"></span>
-      <span id="user-name" class="user-name"></span>
-      <button id="logout-btn" class="logout-btn">Sair</button>
+      <span id="connection-status" class="status-badge status-connecting">conectando...</span>
+      <button id="logout-btn" class="logout-btn" title="Sair">Sair</button>
     </div>
   </header>
 
   <main class="dashboard-main">
-    <section id="dolar-section" class="dolar-section" hidden>
-      <h2>Dólar</h2>
-      <div id="dolar-cards" class="dolar-cards"></div>
-    </section>
+    <div class="quotes-table-wrap">
+      <table class="quotes-table">
+        <thead>
+          <tr>
+            <th>Venc</th>
+            <th>Último</th>
+            <th>Diff</th>
+            <th>Oscil. %</th>
+            <th>Abert</th>
+            <th>Max</th>
+            <th>Min</th>
+            <th>Fech</th>
+            <th>Compra</th>
+            <th>Venda</th>
+            <th>Contrat.<br>Aberto</th>
+            <th>Contrat.<br>Negoc.</th>
+            <th>Ajuste</th>
+          </tr>
+        </thead>
+        <tbody id="quotes-body"></tbody>
+      </table>
+    </div>
 
-    <section id="cafe-section">
-      <h2>Café</h2>
-      <div id="pracas-container" class="pracas-container"></div>
-    </section>
+    <footer class="dashboard-footer">
+      <span id="clock" class="clock"></span>
+      <span id="user-name" class="user-name"></span>
+    </footer>
   </main>
 
   <script src="js/auth.js"></script>

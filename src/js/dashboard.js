@@ -19,11 +19,11 @@
   // ----- Estado das cotações em memória -----
   // instrumento_id -> último dado recebido
   const quotesById = new Map();
-  // praca_codigo -> ordem de exibição fixa (café)
-  const PRACA_ORDEM = { NY: 0, BMF: 1, LONDRES: 2 };
+  // praca_codigo -> ordem de exibição fixa (café primeiro, dólar por último)
+  const PRACA_ORDEM = { NY: 0, BMF: 1, LONDRES: 2, BALCAO: 99 };
 
   function formatNumber(value, decimals) {
-    if (value === null || value === undefined) return '—';
+    if (value === null || value === undefined) return '';
     return value.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
 
@@ -40,95 +40,10 @@
     const row = document.querySelector(`[data-instrumento-id="${instrumentoId}"]`);
     if (!row) return;
     row.classList.remove('flash-up', 'flash-down');
-    if (novo != null && antigo != null) {
-      row.classList.add(novo > antigo ? 'flash-up' : novo < antigo ? 'flash-down' : '');
+    if (novo != null && antigo != null && novo !== antigo) {
+      row.classList.add(novo > antigo ? 'flash-up' : 'flash-down');
     }
     window.setTimeout(() => row.classList.remove('flash-up', 'flash-down'), 1200);
-  }
-
-  function renderAll() {
-    renderDolar();
-    renderCafe();
-  }
-
-  function renderDolar() {
-    const section = document.getElementById('dolar-section');
-    const container = document.getElementById('dolar-cards');
-    const items = [...quotesById.values()].filter((q) => q.ativo === 'Dólar');
-    section.hidden = items.length === 0;
-    container.innerHTML = '';
-    for (const q of items) {
-      const card = document.createElement('div');
-      card.className = 'dolar-card';
-      card.dataset.instrumentoId = q.instrumento_id;
-      const variClass = varClass(q.variacao_pct);
-      card.innerHTML = `
-        <div class="dolar-card-label">${q.vencimento_label}</div>
-        <div class="dolar-card-price">R$ ${formatNumber(q.preco_ultimo, 4)}</div>
-        <div class="dolar-card-var ${variClass}">${formatVariacao(q.variacao_pct)}</div>
-      `;
-      container.appendChild(card);
-    }
-  }
-
-  function renderCafe() {
-    const container = document.getElementById('pracas-container');
-    const cafeItems = [...quotesById.values()].filter((q) => q.ativo === 'Café');
-
-    const byPraca = new Map();
-    for (const q of cafeItems) {
-      if (!byPraca.has(q.praca)) byPraca.set(q.praca, []);
-      byPraca.get(q.praca).push(q);
-    }
-
-    const pracasOrdenadas = [...byPraca.keys()].sort(
-      (a, b) => (PRACA_ORDEM[praCodigo(a, cafeItems)] ?? 99) - (PRACA_ORDEM[praCodigo(b, cafeItems)] ?? 99)
-    );
-
-    container.innerHTML = '';
-    for (const praca of pracasOrdenadas) {
-      const items = byPraca.get(praca).sort((a, b) => a.vencimento_label.localeCompare(b.vencimento_label));
-      const table = document.createElement('table');
-      table.className = 'quotes-table';
-      table.innerHTML = `
-        <caption>${praca}</caption>
-        <thead>
-          <tr>
-            <th>Vencimento</th>
-            <th>Ticker</th>
-            <th>Abertura</th>
-            <th>Mínima</th>
-            <th>Máxima</th>
-            <th>Ajuste ant.</th>
-            <th>Último</th>
-            <th>Var. %</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      `;
-      const tbody = table.querySelector('tbody');
-      for (const q of items) {
-        const tr = document.createElement('tr');
-        tr.dataset.instrumentoId = q.instrumento_id;
-        tr.innerHTML = `
-          <td>${q.vencimento_label}</td>
-          <td class="ticker">${q.ticker}</td>
-          <td>${formatNumber(q.preco_abertura, 2)}</td>
-          <td>${formatNumber(q.preco_minimo, 2)}</td>
-          <td>${formatNumber(q.preco_maximo, 2)}</td>
-          <td>${formatNumber(q.preco_ajuste_anterior, 2)}</td>
-          <td class="preco-ultimo">${formatNumber(q.preco_ultimo, 2)}</td>
-          <td class="${varClass(q.variacao_pct)}">${formatVariacao(q.variacao_pct)}</td>
-        `;
-        tbody.appendChild(tr);
-      }
-      container.appendChild(table);
-    }
-  }
-
-  function praCodigo(nome, items) {
-    const found = items.find((i) => i.praca === nome);
-    return found ? found.praca_codigo : null;
   }
 
   function varClass(pct) {
@@ -136,20 +51,66 @@
     return pct > 0 ? 'positivo' : pct < 0 ? 'negativo' : '';
   }
 
-  function formatVariacao(pct) {
-    if (pct === null || pct === undefined) return '—';
-    const sign = pct > 0 ? '+' : '';
-    return `${sign}${formatNumber(pct, 2)}%`;
+  function bandLabel(codigo, nome) {
+    return codigo === 'BALCAO' ? 'DÓLAR' : nome.toUpperCase();
+  }
+
+  function renderAll() {
+    const tbody = document.getElementById('quotes-body');
+    const items = [...quotesById.values()];
+
+    const byPraca = new Map();
+    for (const q of items) {
+      if (!byPraca.has(q.praca)) byPraca.set(q.praca, { codigo: q.praca_codigo, items: [] });
+      byPraca.get(q.praca).items.push(q);
+    }
+
+    const pracasOrdenadas = [...byPraca.entries()].sort(
+      (a, b) => (PRACA_ORDEM[a[1].codigo] ?? 50) - (PRACA_ORDEM[b[1].codigo] ?? 50)
+    );
+
+    tbody.innerHTML = '';
+    for (const [pracaNome, { codigo, items: pracaItems }] of pracasOrdenadas) {
+      const bandRow = document.createElement('tr');
+      bandRow.className = codigo === 'BALCAO' ? 'band-row band-dolar' : 'band-row band-cafe';
+      bandRow.innerHTML = `<td colspan="13">${bandLabel(codigo, pracaNome)}</td>`;
+      tbody.appendChild(bandRow);
+
+      const sorted = pracaItems.sort((a, b) => a.vencimento_label.localeCompare(b.vencimento_label));
+      for (const q of sorted) {
+        const decimals = codigo === 'BALCAO' ? 4 : 2;
+        const tr = document.createElement('tr');
+        tr.dataset.instrumentoId = q.instrumento_id;
+        tr.innerHTML = `
+          <td class="col-venc">${q.vencimento_label}</td>
+          <td class="preco-ultimo">${formatNumber(q.preco_ultimo, decimals)}</td>
+          <td class="${varClass(q.variacao_pct)}">${formatNumber(q.variacao, decimals)}</td>
+          <td class="${varClass(q.variacao_pct)}">${q.variacao_pct != null ? formatNumber(q.variacao_pct, 2) + '%' : ''}</td>
+          <td>${formatNumber(q.preco_abertura, decimals)}</td>
+          <td>${formatNumber(q.preco_maximo, decimals)}</td>
+          <td>${formatNumber(q.preco_minimo, decimals)}</td>
+          <td>${formatNumber(q.preco_fechamento, decimals)}</td>
+          <td>${formatNumber(q.preco_compra, decimals)}</td>
+          <td>${formatNumber(q.preco_venda, decimals)}</td>
+          <td>${formatNumber(q.contratos_abertos, 0)}</td>
+          <td>${formatNumber(q.contratos_negociados, 0)}</td>
+          <td>${formatNumber(q.preco_ajuste, decimals)}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
   }
 
   // ----- WebSocket em tempo real -----
   const statusEl = document.getElementById('connection-status');
+  const liveDot = document.getElementById('live-dot');
   let ws = null;
   let reconnectDelay = 1000;
   let pingInterval = null;
 
   function setStatus(state) {
     statusEl.classList.remove('status-connecting', 'status-online', 'status-offline');
+    liveDot.classList.toggle('live-dot-online', state === 'online');
     if (state === 'online') {
       statusEl.classList.add('status-online');
       statusEl.textContent = 'ao vivo';
