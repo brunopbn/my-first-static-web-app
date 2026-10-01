@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: painel
+      POSTGRES_PASSWORD: painel
+      POSTGRES_DB: painel_cotacoes
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U painel -d painel_cotacoes"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://painel:painel@db:5432/painel_cotacoes
+      JWT_SECRET_KEY: troque-esta-chave-em-producao
+      DEFAULT_MAX_SESSIONS: "1"
+      SESSION_LIMIT_POLICY: reject
+      QUOTE_POLL_INTERVAL_SECONDS: "5"
+      FRONTEND_DIR: /app/src
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src:ro
+
+volumes:
+  db_data:
